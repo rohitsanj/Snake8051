@@ -1,3 +1,0 @@
-".\Objects\snake_game_2.obj" 
-TO ".\Objects\SnakeGame" 
-PRINT(".\Listings\SnakeGame.m51")
