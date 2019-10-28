@@ -13,6 +13,8 @@ STEMP EQU 29H
 
 SCORE EQU 2AH
 	
+GAME_OVER EQU 2BH
+	
 SNAKE_LENGTH_PTR EQU 30H
 	
 SNAKE_DIR EQU 31H
@@ -52,11 +54,20 @@ LCALL _get_input_update_new_direction
 ACALL _clear_display_buffer
 ACALL _set_snake
 ACALL _place_snake_egg
-ACALL _update
-;ACALL _check_if_head_coincides_with_egg
+ACALL _update_head
+ACALL _check_if_head_coincides_with_egg
+ACALL _update_snake_array
+ACALL _check_if_snake_ate_itself
+JZ over
 ACALL _display
 						;ACALL _delay
 SJMP loop
+over: 
+MOV VCC, #0FFH
+MOV GND, #00H
+ACALL _delay
+MOV VCC, #00H
+SJMP $
 
 
 _clear_display_buffer:
@@ -69,6 +80,7 @@ _clear_display_buffer:
 RET
 
 _setup:
+	MOV GAME_OVER, #0FFH
 	MOV SCORE, #0
 	MOV KEYPAD_PORT, #0FFH
 	ACALL _clear_display_buffer
@@ -97,7 +109,7 @@ _set_snake:
 	DJNZ R3, next_byte
 RET
 
-_update:
+_update_head:
 	MOV A, #SNAKE_TAIL
 	ADD A, SNAKE_LENGTH_PTR
 	DEC A
@@ -222,21 +234,27 @@ _update:
 				AJMP next_update
 		AJMP next_update
 		
-	next_update: 
-	MOV @R0, A ; write the new head value back to head location - egg logic later
+	next_update: 	
+	MOV STEMP, A
+RET
+
+_update_snake_array:
+	MOV A, #SNAKE_TAIL
+	ADD A, SNAKE_LENGTH_PTR
+	DEC A
+	MOV R0, A
+	MOV @R0, STEMP ; write the new head value back to head location - egg logic later
 	next_mem_loc:
 	DEC R0
 	MOV STEMP, @R0
 	MOV @R0, TEMP
 	MOV TEMP, STEMP
-	
 	CJNE R0, #SNAKE_TAIL, next_mem_loc
-	
 RET
 
 _display:
 
-						MOV R6, #20H
+						MOV R6, #22H
 	again_2:
 	MOV R2, #8
 	MOV R3, #01H
@@ -440,6 +458,27 @@ _place_snake_egg:
 	ACALL _convert_and_set_bit
 RET
 
+_check_if_snake_ate_itself:
+	MOV A, #SNAKE_TAIL
+	ADD A, SNAKE_LENGTH_PTR
+	DEC A
+	
+	MOV R0, A
+	MOV TEMP, @R0
+	
+	not_equal: 
+	DEC R0
+	MOV A, @R0
+	XRL A, TEMP
+	JZ its_game_over
+	CJNE R0, #SNAKE_TAIL, not_equal
+	RET
+	its_game_over: 
+	MOV GAME_OVER, #00H
+RET
+	
+	
+
 _delay_between_frame:  
 PUSH REG_4
 PUSH REG_3
@@ -471,6 +510,6 @@ _delay:
 RET
 
 ORG 0800H
-EGG_LOCATIONS: DB 43H, 43H, 43H, 43H, 43H, 43H, 43H, 43H, 43H, 43H
+EGG_LOCATIONS: DB 43H, 23H, 15H, 67H, 50H, 33H, 47H, 03H, 25H, 15H, 26H, 52H, 77H
 
 END
