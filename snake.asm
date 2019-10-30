@@ -28,7 +28,7 @@ SNAKE_TAIL 				EQU 33H
 	
 INITIAL_LENGTH_SNAKE 	EQU 2D
 	
-INITIAL_SNAKE_DIR 		EQU 1D
+INITIAL_SNAKE_DIR 		EQU 2D
 	
 CURR_KEY_STATES 		EQU 00FH
 	
@@ -42,47 +42,47 @@ DISP_START_ADDR 		EQU 20H
 DISP_END_ADDR 			EQU 27H
 
 MAIN: 
-ACALL _setup
+	ACALL _setup
 
-MOV 33H, #46H
-MOV 34H, #45H
+	MOV 33H, #35H
+	MOV 34H, #45H
 
-; 0 - up
-; 1 - right
-; 2 - down
-; 3 - left
+	; 0 - up
+	; 1 - right
+	; 2 - down
+	; 3 - left
 
-loop: 
-MOV CURR_KEY_STATES, KEYPAD_PORT
-LCALL _get_input_update_new_direction
-ACALL _clear_display_buffer
-ACALL _set_snake
-ACALL _place_snake_egg
-ACALL _update_head
-ACALL _check_if_head_coincides_with_egg
-ACALL _update_snake_array
-ACALL _check_if_snake_ate_itself
-JZ over
-ACALL _write_score_to_lcd
-ACALL _display
-						;ACALL _delay
-SJMP loop
-over: 
-MOV R7, #08H
-show_dead_again:
-ACALL _display
-ACALL _delay
-DJNZ R7, show_dead_again
-ACALL _delay
-MOV VCC, #00H
-MOV GND, #00H
-ACALL _game_over_message
-
-check_again_end: 
+	loop: 
 	MOV CURR_KEY_STATES, KEYPAD_PORT
-	MOV A, #ANY_KEY_MASK
-	ACALL A_detect_key_press
-	JZ check_again_end
+	LCALL _get_input_update_new_direction
+	ACALL _clear_display_buffer
+	ACALL _set_snake
+	ACALL _place_snake_egg
+	ACALL _update_head
+	ACALL _check_if_head_coincides_with_egg
+	ACALL _update_snake_array
+	ACALL _check_if_snake_ate_itself
+	JZ over
+	ACALL _write_score_to_lcd
+	ACALL _display
+							;ACALL _delay
+	SJMP loop
+	over: 
+	MOV R7, #08H
+	show_dead_again:
+	ACALL _display
+	ACALL _delay
+	DJNZ R7, show_dead_again
+	ACALL _delay
+	MOV VCC, #00H
+	MOV GND, #00H
+	ACALL _game_over_message
+
+	check_again_end: 
+		MOV CURR_KEY_STATES, KEYPAD_PORT
+		MOV A, #ANY_KEY_MASK
+		ACALL A_detect_key_press
+		JZ check_again_end
 SJMP MAIN
 
 _clear_display_buffer:
@@ -104,7 +104,7 @@ _setup:
 	MOV @R0, #INITIAL_LENGTH_SNAKE ; initial size of snake
 	
 	MOV SNAKE_DIR, #INITIAL_SNAKE_DIR
-	MOV SNAKE_NEXT_DIR, #1
+	MOV SNAKE_NEXT_DIR, #2
 	
 	ACALL lcd_init
 	ACALL _welcome_message
@@ -562,22 +562,22 @@ lcd_init:
 MOV A, #38H
 ACALL lcd_cmd
 
-ACALL _delay
+ACALL _delay_between_frame
 
 MOV A, #0EH
 ACALL lcd_cmd
 
-ACALL _delay
+ACALL _delay_between_frame
 
 MOV A, #01H
 ACALL lcd_cmd
 
-ACALL _delay
+ACALL _delay_between_frame
 
 MOV A, #80H
 ACALL lcd_cmd
 
-ACALL _delay
+ACALL _delay_between_frame
 RET
 
 lcd_cmd:
