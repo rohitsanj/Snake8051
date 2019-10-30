@@ -1,41 +1,45 @@
-VCC EQU P2
-GND EQU P3
-KEYPAD_PORT EQU P1
-REG_6 EQU 06
-REG_5 EQU 05
-REG_4 EQU 04
-REG_3 EQU 03		
-REG_2 EQU 02
-REG_1 EQU 01
-REG_0 EQU 00
-TEMP EQU 28H
-STEMP EQU 29H
+RS 						EQU P1.7
+EN						EQU P1.6
+DISPLAY_PORT 			EQU P0
+VCC 					EQU P2
+GND 					EQU P3
+KEYPAD_PORT 			EQU P1
+REG_6 					EQU 06
+REG_5 					EQU 05
+REG_4 					EQU 04
+REG_3 					EQU 03		
+REG_2 					EQU 02
+REG_1 					EQU 01
+REG_0 					EQU 00
+TEMP 					EQU 28H
+STEMP 					EQU 29H
 
-SCORE EQU 2AH
+SCORE 					EQU 2AH
 	
-GAME_OVER EQU 2BH
+GAME_OVER 				EQU 2BH
 	
-SNAKE_LENGTH_PTR EQU 30H
+SNAKE_LENGTH_PTR 		EQU 30H
 	
-SNAKE_DIR EQU 31H
+SNAKE_DIR 				EQU 31H
 	
-SNAKE_NEXT_DIR EQU 32H
+SNAKE_NEXT_DIR 			EQU 32H
 	
-SNAKE_TAIL EQU 33H
+SNAKE_TAIL 				EQU 33H
 	
-INITIAL_LENGTH_SNAKE EQU 2D
+INITIAL_LENGTH_SNAKE 	EQU 2D
 	
-INITIAL_SNAKE_DIR EQU 1D
+INITIAL_SNAKE_DIR 		EQU 1D
 	
-CURR_KEY_STATES EQU 00FH
+CURR_KEY_STATES 		EQU 00FH
 	
-KEY_MASK_0 EQU 00000001B
-KEY_MASK_1 EQU 00000010B
-KEY_MASK_2 EQU 00000100B
-KEY_MASK_3 EQU 00001000B
-	
-DISP_START_ADDR EQU 20H
-DISP_END_ADDR EQU 27H
+KEY_MASK_0 				EQU 00000001B
+KEY_MASK_1 				EQU 00000010B
+KEY_MASK_2 				EQU 00000100B
+KEY_MASK_3 				EQU 00001000B
+ANY_KEY_MASK			EQU 00001111B
+		
+DISP_START_ADDR 		EQU 20H
+DISP_END_ADDR 			EQU 27H
 
 MAIN: 
 ACALL _setup
@@ -59,16 +63,27 @@ ACALL _check_if_head_coincides_with_egg
 ACALL _update_snake_array
 ACALL _check_if_snake_ate_itself
 JZ over
+ACALL _write_score_to_lcd
 ACALL _display
 						;ACALL _delay
 SJMP loop
 over: 
-MOV VCC, #0FFH
-MOV GND, #00H
+MOV R7, #08H
+show_dead_again:
+ACALL _display
+ACALL _delay
+DJNZ R7, show_dead_again
 ACALL _delay
 MOV VCC, #00H
-SJMP $
+MOV GND, #00H
+ACALL _game_over_message
 
+check_again_end: 
+	MOV CURR_KEY_STATES, KEYPAD_PORT
+	MOV A, #ANY_KEY_MASK
+	ACALL A_detect_key_press
+	JZ check_again_end
+SJMP MAIN
 
 _clear_display_buffer:
 	MOV R2, #8
@@ -90,6 +105,19 @@ _setup:
 	
 	MOV SNAKE_DIR, #INITIAL_SNAKE_DIR
 	MOV SNAKE_NEXT_DIR, #1
+	
+	ACALL lcd_init
+	ACALL _welcome_message
+	
+	check_again: 
+	MOV CURR_KEY_STATES, KEYPAD_PORT
+	MOV A, #ANY_KEY_MASK
+	ACALL A_detect_key_press
+	JZ check_again
+	
+	ACALL lcd_init
+	MOV DPTR, #SCORE_MESSAGE
+	ACALL _display_string_on_lcd
 RET
 
 _set_snake: 
@@ -254,7 +282,7 @@ RET
 
 _display:
 
-						MOV R6, #22H
+	MOV R6, #22H ; this value controls the speed of the snake
 	again_2:
 	MOV R2, #8
 	MOV R3, #01H
@@ -270,14 +298,15 @@ _display:
 	MOV A, R3
 	RL A
 	MOV R3, A
-						ACALL _delay_between_frame
+	
+	ACALL _delay_between_frame
 
 	DJNZ R2, again
-						DJNZ R6, again_2
+	DJNZ R6, again_2
 return: RET
 
-; Function: _update_up
-; Description: Y--
+; Function: _update_right
+; Description: X--
 _update_right:
 	PUSH REG_6
 	PUSH 0E0H
@@ -296,8 +325,8 @@ _update_right:
 	POP REG_6
 RET
 
-; Function: _update_right
-; Description: X--
+; Function: _update_up
+; Description: Y--
 _update_up:
 	PUSH REG_6
 	PUSH 0E0H
@@ -317,8 +346,8 @@ _update_up:
 	POP REG_6
 RET
 
-; Function: _update_down
-; Descsription: Y++
+; Function: _update_left
+; Descsription: X++
 _update_left:
 	PUSH REG_6
 	PUSH 0E0H
@@ -336,8 +365,8 @@ _update_left:
 	POP REG_6
 RET
 
-; Function: _update_left
-; Description: X++
+; Function: _update_down
+; Description: Y++
 _update_down:
 	PUSH REG_6
 	PUSH 0E0H
@@ -356,8 +385,6 @@ _update_down:
 	ORL A, R6
 	POP REG_6
 RET
-
-
 
 ; Function: _convert_and_set_bit
 ; Arguments: A
@@ -432,6 +459,8 @@ A_detect_key_press:
 	POP REG_0
 RET
 
+; Function: _check_if_head_coincides_with_egg
+; Description: This function checks if the snake has eaten the egg or not
 _check_if_head_coincides_with_egg:
 	MOV DPTR, #EGG_LOCATIONS
 	MOV A, SCORE
@@ -451,6 +480,9 @@ _check_if_head_coincides_with_egg:
 
 return_check_if_head: RET
 
+; Function: _place_snake_egg
+; Description: Place the snake egg. Right now it is according to a fixed table of locations, 
+;				further improvements can make it random
 _place_snake_egg:
 	MOV DPTR, #EGG_LOCATIONS
 	MOV A, SCORE
@@ -458,6 +490,8 @@ _place_snake_egg:
 	ACALL _convert_and_set_bit
 RET
 
+; Function: _check_if_snake_ate_itself
+; Description: The function checks if the snake ate itself or not
 _check_if_snake_ate_itself:
 	MOV A, #SNAKE_TAIL
 	ADD A, SNAKE_LENGTH_PTR
@@ -477,8 +511,8 @@ _check_if_snake_ate_itself:
 	MOV GAME_OVER, #00H
 RET
 	
-	
-
+; Function: _delay_between_frame
+; Description: Used for delay between each frame of display
 _delay_between_frame:  
 PUSH REG_4
 PUSH REG_3
@@ -509,7 +543,122 @@ _delay:
 	POP REG_4
 RET
 
+_delay_long:  
+	PUSH REG_4
+	PUSH REG_3
+	PUSH REG_2
+	MOV R4,#05H
+	WAIT_1_long: MOV R3,#00H
+	WAIT_2_long: MOV R2,#00H
+	WAIT_3_long: DJNZ R2,WAIT_3_long
+			DJNZ R3,WAIT_2_long
+			DJNZ R4,WAIT_1_long
+	POP REG_2
+	POP REG_3
+	POP REG_4
+RET
+
+lcd_init:
+MOV A, #38H
+ACALL lcd_cmd
+
+ACALL _delay
+
+MOV A, #0EH
+ACALL lcd_cmd
+
+ACALL _delay
+
+MOV A, #01H
+ACALL lcd_cmd
+
+ACALL _delay
+
+MOV A, #80H
+ACALL lcd_cmd
+
+ACALL _delay
+RET
+
+lcd_cmd:
+	MOV DISPLAY_PORT, A
+	CLR RS
+	SETB EN
+	
+	MOV R4,#05H
+	delay: DJNZ R4, delay
+	
+	CLR EN
+RET
+
+lcd_data:
+	MOV DISPLAY_PORT, A
+	SETB RS
+	SETB EN
+	
+	MOV R4,#05H
+	delay_data: DJNZ R4, delay_data
+	
+	CLR EN
+RET
+
+_write_score_to_lcd:
+	MOV A, SCORE
+	ADD A, #30H
+	MOV DISPLAY_PORT, A
+	ACALL lcd_data
+	
+	ACALL _delay_between_frame
+	MOV A, #87H
+	ACALL lcd_cmd
+	ACALL _delay_between_frame
+RET
+
+_welcome_message:
+	MOV DPTR, #WELCOME_MESSAGE
+	ACALL _display_string_on_lcd
+
+	MOV A, #0C0H
+	ACALL lcd_cmd
+	ACALL _delay_between_frame
+
+	MOV DPTR, #PRESS_KEY
+	ACALL _display_string_on_lcd
+	ACALL _delay_long
+
+	ACALL _delay_long
+RET
+
+_game_over_message:
+	MOV A, #0C0H
+	ACALL lcd_cmd
+	ACALL _delay_between_frame
+
+	MOV DPTR, #END_MESSAGE
+	ACALL _display_string_on_lcd
+	ACALL _delay_long
+
+	ACALL _delay_long
+RET
+
+_display_string_on_lcd:
+	; takes input as DPTR
+	CLR A
+	next_character: 
+	CLR A
+	MOVC A,@A+DPTR
+	JZ exit
+	INC DPTR
+	ACALL lcd_data
+	ACALL _delay_between_frame
+	SJMP next_character
+	exit:
+RET
+
 ORG 0800H
 EGG_LOCATIONS: DB 43H, 23H, 15H, 67H, 50H, 33H, 47H, 03H, 25H, 15H, 26H, 52H, 77H
-
+WELCOME_MESSAGE: DB "SNAKE GAME!",0
+PRESS_KEY: DB "PRESS TO START",0
+END_MESSAGE: DB "GAME OVER!", 0
+SCORE_MESSAGE: DB "SCORE: ", 0
 END
