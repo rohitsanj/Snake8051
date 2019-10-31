@@ -41,16 +41,13 @@ ANY_KEY_MASK			EQU 00001111B
 DISP_START_ADDR 		EQU 20H
 DISP_END_ADDR 			EQU 27H
 
+; 0 - up
+; 1 - right
+; 2 - down
+; 3 - left
+
 MAIN: 
 	ACALL _setup
-
-	MOV 33H, #35H
-	MOV 34H, #45H
-
-	; 0 - up
-	; 1 - right
-	; 2 - down
-	; 3 - left
 
 	loop: 
 	MOV CURR_KEY_STATES, KEYPAD_PORT
@@ -65,8 +62,8 @@ MAIN:
 	JZ over
 	ACALL _write_score_to_lcd
 	ACALL _display
-							;ACALL _delay
 	SJMP loop
+	
 	over: 
 	MOV R7, #08H
 	show_dead_again:
@@ -118,6 +115,10 @@ _setup:
 	ACALL lcd_init
 	MOV DPTR, #SCORE_MESSAGE
 	ACALL _display_string_on_lcd
+	
+	; set the initial position of snake
+	MOV 33H, #35H
+	MOV 34H, #45H
 RET
 
 _set_snake: 
@@ -412,6 +413,7 @@ _convert_and_set_bit:
 	MOV @R0, A
 RET
 
+; Description: Determines the next direction based on key press
 _get_input_update_new_direction:
 	input_right: 
 	MOV A, #KEY_MASK_0
@@ -604,14 +606,33 @@ RET
 
 _write_score_to_lcd:
 	MOV A, SCORE
+	CJNE A, #0AH, check_more_than_ten
+	check_more_than_ten: JNC convert_number
+	ADD A, #30H
+	MOV DISPLAY_PORT, A
+	ACALL lcd_data
+	sjmp reset_to_original_pos
+	convert_number:
+	MOV B, #0AH
+	DIV AB
+	ADD A, #30H
+	MOV DISPLAY_PORT, A
+	ACALL lcd_data
+	ACALL _delay_between_frame
+	MOV A, B
 	ADD A, #30H
 	MOV DISPLAY_PORT, A
 	ACALL lcd_data
 	
+	
+	
+	reset_to_original_pos:
 	ACALL _delay_between_frame
 	MOV A, #87H
 	ACALL lcd_cmd
 	ACALL _delay_between_frame
+	
+	
 RET
 
 _welcome_message:
@@ -656,7 +677,7 @@ _display_string_on_lcd:
 RET
 
 ORG 0800H
-EGG_LOCATIONS: DB 43H, 23H, 15H, 67H, 50H, 33H, 47H, 03H, 25H, 15H, 26H, 52H, 77H
+EGG_LOCATIONS: DB 43H, 23H, 15H, 67H, 50H, 33H, 47H, 03H, 25H, 15H, 26H, 52H, 77H, 27H, 56H, 64H, 32H, 55H, 38H, 13H, 11H, 17H, 43H, 23H, 15H, 67H, 50H, 33H, 47H, 03H, 25H, 15H, 26H, 52H, 77H, 27H, 56H, 64H, 32H, 55H, 38H, 13H, 11H, 17H
 WELCOME_MESSAGE: DB "SNAKE GAME!",0
 PRESS_KEY: DB "PRESS TO START",0
 END_MESSAGE: DB "GAME OVER!", 0
