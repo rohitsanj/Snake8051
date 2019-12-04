@@ -1,3 +1,7 @@
+; Author: Rohit Sanjay
+; Email : rohitsanjayb@gmail.com
+; Copyright 2019
+
 RS 						EQU P1.7
 EN						EQU P1.6
 DISPLAY_PORT 			EQU P0
