@@ -3,6 +3,10 @@
 ## Demo
 [![YouTube video](https://imgur.com/Lb5giii.png)](https://www.youtube.com/watch?v=a61vDo7EoFM)
 
+## Code
+
+[GitHub](https://github.com/rohitsanj/Snake8051)
+
 ## About Snake Game:
 The snake must be maneuvered around the display to catch the eggs. The snake can freely move around the display (if it goes from one side, it will come back from the other). The player must take care that the snake does not catch itself, which will lead to termination of the game.
 
